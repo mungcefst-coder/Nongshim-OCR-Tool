@@ -2,83 +2,14 @@ import streamlit as st
 import cv2
 import easyocr
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageOps
 import re
-import base64
-from io import BytesIO
 
 # ==========================================
-# 1. 페이지 설정 및 실시간 모바일 압축 자바스크립트 내장
+# 1. 페이지 설정 및 현장용 UI 디자인
 # ==========================================
-st.set_page_config(page_title="농심 일부인 검증 시스템", layout="wide")
+st.set_page_config(page_title="농심 부산생산1팀 일부인 검증", layout="wide")
 
-# [핵심 기술] 스마트폰 카메라가 사진을 찍자마자 브라우저 메모리 안에서 가로 600px로 초고속 압축하여 
-# 서버로 전송하는 HTML5/JavaScript 컴포넌트입니다. (메모리 폭발 방지)
-def HTML5_Camera_Compressor(key_id, button_text):
-    html_code = f"""
-    <div style="font-family: sans-serif; margin-bottom: 20px;">
-        <label class="custom-file-upload" style="
-            display: block;
-            width: 100%;
-            height: 60px;
-            background-color: #3498db;
-            color: white;
-            text-align: center;
-            line-height: 60px;
-            font-size: 20px;
-            font-weight: bold;
-            border-radius: 12px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        ">
-            {button_text}
-            <input type="file" accept="image/*" capture="environment" id="{key_id}" style="display: none;">
-        </label>
-        <div id="status_{key_id}" style="margin-top: 5px; font-size: 14px; color: #7f8c8d;"></div>
-    </div>
-
-    <script>
-    const fileInput_{key_id} = document.getElementById('{key_id}');
-    fileInput_{key_id}.addEventListener('change', function(e) {{
-        const file = e.target.files[0];
-        if (!file) return;
-        
-        document.getElementById('status_{key_id}').innerText = "⚡ 현장 사진 초고속 압축 중...";
-        
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = function(event) {{
-            const img = new Image();
-            img.src = event.target.result;
-            img.onload = function() {{
-                // 초고화질 사진을 가로 600px 레이아웃으로 강제 다이어트
-                const maxWidth = 600;
-                const scaleFactor = maxWidth / img.width;
-                const canvas = document.createElement('canvas');
-                canvas.width = maxWidth;
-                canvas.height = img.height * scaleFactor;
-                
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                // 압축된 가벼운 이미지만 추출 (용량이 1/50로 줄어듦)
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.7);
-                
-                // Streamlit 서버로 가벼워진 이미지 데이터 전송
-                window.parent.postMessage({{
-                    type: 'streamlit:setComponentValue',
-                    value: dataUrl,
-                    key: '{key_id}'
-                }}, '*');
-                document.getElementById('status_{key_id}').innerText = "📸 전송 완료!";
-            }}
-        }}
-    }});
-    </script>
-    """
-    return st.components.v1.html(html_code, height=95)
-
-# UI 디자인 고도화
 st.markdown("""
     <style>
     .reportview-container { background: #f0f2f6; }
@@ -95,16 +26,14 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. 상단 헤더 영역
-# ==========================================
+# 상단 헤더
 st.image("nongshim_logo.png", width=150)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("촬영 즉시 실시간 전하 압축 알고리즘 탑재 버전 (V4.0 - 완결판)")
+st.caption("실시간 라이브 카메라 및 글자 회전 자동 보정 탑재 버전 (V5.0)")
 st.write("---")
 
 # ==========================================
-# 3. AI OCR 엔진 초기화
+# 2. AI OCR 엔진 초기화
 # ==========================================
 @st.cache_resource
 def load_ocr():
@@ -115,62 +44,89 @@ try:
 except Exception as e:
     st.error(f"⚠️ AI 엔진 로드 오류: {e}")
 
-def extract_pure_marking(raw_text):
-    date_match = re.search(r'\d{8}', raw_text)
-    date_part = date_match.group(0) if date_match else ""
-    remaining_text = raw_text.replace(date_part, "")
-    lot_matches = re.findall(r'[A-Z0-9]{2,6}', remaining_text)
-    lot_part = lot_matches[0] if lot_matches else ""
-    if date_part:
-        return f"{date_part} {lot_part}".strip()
-    return raw_text
-
-def decode_image_base64(base64_str):
-    if not base64_str:
-        return None, ""
-    header, encoded = base64_str.split(",", 1)
-    data = base64.b64decode(encoded)
-    img = Image.open(BytesIO(data))
-    img_np = np.array(img)
-    result = reader.readtext(img_np, detail=0)
-    raw_combined = "".join(result).upper().replace(" ", "")
-    pure_marking = extract_pure_marking(raw_combined)
-    return img, pure_marking
+# [핵심 알고리즘] 누워있는 글자, 점이 찍힌 날짜 패턴을 다각도로 분석하여 추출하는 함수
+def extract_nongshim_marking(img_pil):
+    if img_pil is None:
+        return ""
+    
+    # 스마트폰 세로 촬영 시 사진이 돌아가는 물리적 현상 방지 (EXIF 방향 보정)
+    img_pil = ImageOps.exif_transpose(img_pil)
+    
+    # AI 인식 속도 향상을 위한 이미지 최적화 리사이징
+    if img_pil.width > 800:
+        w_percent = (800 / float(img_pil.width))
+        h_size = int((float(img_pil.height) * float(w_percent)))
+        img_pil = img_pil.resize((800, h_size), Image.Resampling.LANCZOS)
+    
+    # 원본 및 회전 각도별(0도, 90도, 270도)로 총 3번 정밀 탐색하여 누운 글자 잡아내기
+    rotations = [0, 90, 270]
+    best_text = ""
+    
+    for angle in rotations:
+        if angle == 0:
+            test_img = np.array(img_pil)
+        elif angle == 90:
+            test_img = np.array(img_pil.rotate(90, expand=True))
+        elif angle == 270:
+            test_img = np.array(img_pil.rotate(270, expand=True))
+            
+        result = reader.readtext(test_img, detail=0)
+        combined = "".join(result).upper().replace(" ", "")
+        
+        # 날짜 정규식 패턴 분석 (예: 27.05.2027 또는 20270525 등 패턴 추출)
+        # 8자리 숫자 검색 또는 점(.)이 포함된 날짜 양식 검색
+        date_match = re.search(r'\d{2}\.\d{2}\.\d{4}|\d{8}', combined)
+        
+        if date_match:
+            date_part = date_match.group(0)
+            # 날짜 뒤에 붙은 LOT 번호(예: TE26) 추출
+            remaining = combined.replace(date_part, "")
+            lot_match = re.search(r'LOT:[A-Z0-9]{2,6}|LOT[A-Z0-9]{2,6}|[A-Z]{2}\d{2}', remaining)
+            lot_part = lot_match.group(0) if lot_match else ""
+            
+            # 깔끔하게 필터링된 결과 조립 및 반환
+            return f"📅{date_part} / 📦{lot_part}".strip()
+            
+        if len(combined) > len(best_text):
+            best_text = combined
+            
+    return best_text # 만약 규격 날짜 패턴 실패 시 가장 길게 읽은 텍스트 반환
 
 # ==========================================
-# 4. 현장 작업용 투트랙 레이아웃 구성
+# 3. 실시간 라이브 카메라 UI (가장 직관적인 투트랙)
 # ==========================================
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown("### 🎯 1단계: [기준] 마스터 등록")
-    # 자바스크립트 특제 카메라 버튼 배치
-    master_b64 = HTML5_Camera_Compressor("master_cam", "📸 즉시 카메라 촬영 [기준]")
+    # 화면에서 즉시 켜지는 안정적인 스트림릿 네이티브 실시간 웹캠 창
+    master_cam = st.camera_input("기준 오더지 또는 초물 제품을 정면으로 조준해 찍으세요", key="cam_master")
     
     master_text = ""
-    if master_b64:
-        m_img, master_text = decode_image_base64(master_b64)
-        if m_img:
-            st.image(m_img, caption="🎯 등록된 기준 데이터", use_container_width=True)
+    if master_cam:
+        m_img = Image.open(master_cam)
+        with st.spinner("AI가 기준 마킹 분석 중..."):
+            master_text = extract_nongshim_marking(m_img)
+        st.success(f"🎯 기준 분석 완료: {master_text}")
 
 with col2:
     st.markdown("### 🔍 2단계: [검사] 매시간 대조")
-    # 자바스크립트 특제 카메라 버튼 배치
-    test_b64 = HTML5_Camera_Compressor("test_cam", "📸 즉시 카메라 촬영 [검사]")
+    test_cam = st.camera_input("현재 라인에서 나온 검사 대상 제품을 찍으세요", key="cam_test")
     
     test_text = ""
-    if test_b64:
-        t_img, test_text = decode_image_base64(test_b64)
-        if t_img:
-            st.image(t_img, caption="🔍 방금 촬영된 검사 대상", use_container_width=True)
+    if test_cam:
+        t_img = Image.open(test_cam)
+        with st.spinner("AI가 검사 대상 분석 중..."):
+            test_text = extract_nongshim_marking(t_img)
+        st.success(f"🔍 검사 분석 완료: {test_text}")
 
 # ==========================================
-# 5. 실시간 비교 및 최종 판정
+# 4. 최종 1:1 대조 판정 결과 출력
 # ==========================================
 st.write("---")
 st.subheader("📊 AI 1:1 대조 판정 결과")
 
-if master_b64 and test_b64:
+if master_cam and test_cam:
     res_col1, res_col2 = st.columns(2)
     with res_col1:
         st.metric(label="🎯 순수 기준 데이터", value=master_text if master_text else "인식 실패")
@@ -179,15 +135,16 @@ if master_b64 and test_b64:
     
     st.write("")
     
+    # 알맹이 데이터가 완벽히 일치하는지 비교
     if master_text == test_text and master_text != "":
         st.markdown(
-            '<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. 생산을 계속 진행하세요.</span></p>', 
+            '<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. 안심하고 생산을 진행하세요.</span></p>', 
             unsafe_allow_html=True
         )
     else:
         st.markdown(
-            '<p class="big-font-ng">🔴 불일치 (NG) - 오날인 위험!! <br><span style="font-size:16px; font-weight:normal;">날짜나 로트번호 패턴이 다릅니다! 마킹기를 확인하세요.</span></p>', 
+            '<p class="big-font-ng">🔴 불일치 (NG) - 오날인 위험!! <br><span style="font-size:16px; font-weight:normal;">날짜나 로트번호가 다릅니다! 마킹기 출력을 즉시 확인하세요.</span></p>', 
             unsafe_allow_html=True
         )
 else:
-    st.warning("💡 판정을 시작하려면 좌측 [기준] 버튼과 우측 [검사] 버튼을 눌러 카메라로 즉시 촬영해 주세요.")
+    st.warning("💡 판정을 시작하려면 좌측의 [기준] 카메라와 우측의 [검사] 카메라로 각각 'Take Photo'를 눌러 촬영해 주세요.")
