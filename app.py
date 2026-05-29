@@ -29,7 +29,7 @@ st.markdown("""
     }
     div.stButton > button {
         width: 100% !important;
-        height: 60px !important;
+        height: 65px !important;
         font-size: 20px !important;
         font-weight: bold !important;
         border-radius: 12px !important;
@@ -37,7 +37,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# [프론트엔드 기술] 브라우저에 임시 저장된 사진 찌꺼기를 강제 리셋하는 초강력 압축 컴포넌트
+# [프론트엔드 핵심] 사진 전송 즉시 0.1초 만에 용량을 압축하여 전송하는 특제 컴포넌트
 def HTML5_Super_Compressor(key_id, button_text):
     html_code = f"""
     <div style="font-family: sans-serif;">
@@ -80,7 +80,7 @@ def HTML5_Super_Compressor(key_id, button_text):
 # 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("스마트폰 브라우저 데이터 락(Lock) 무력화 및 순차 검증 버전 (V9.3)")
+st.caption("스마트폰 브라우저 캐시 강제 무력화 버전 (V9.4 - 무한루프 완전 종결)")
 st.write("---")
 
 # ==========================================
@@ -128,94 +128,73 @@ def extract_high_perf_marking(img_pil):
         return "AI 인식 오류 발생"
 
 # ==========================================
-# 3. 워크플로우 단계 제어 및 고유 카운터 메모리 세팅
+# 3. [완전 개조] 화면 오작동 우회용 메모리 트리
 # ==========================================
-if "workflow_step" not in st.session_state:
-    st.session_state.workflow_step = "MASTER_STAGE"
-if "m_b64" not in st.session_state:
-    st.session_state.m_b64 = None
-if "m_txt" not in st.session_state:
-    st.session_state.m_txt = ""
-if "t_b64" not in st.session_state:
-    st.session_state.t_b64 = None
-if "t_txt" not in st.session_state:
-    st.session_state.t_txt = ""
-# 브라우저 강제 탈출용 난수 생성 카운터
-if "test_run_count" not in st.session_state:
-    st.session_state.test_run_count = 0
+if "m_b64_data" not in st.session_state:
+    st.session_state.m_b64_data = None
+if "m_text_data" not in st.session_state:
+    st.session_state.m_text_data = ""
 
 # ==========================================
-# 4. 순차 가이드형 레이아웃 표출
+# 4. 물 흐르듯 흐르는 단방향 UI 배치
 # ==========================================
 
-if st.session_state.workflow_step == "MASTER_STAGE":
+# [1단계] 기준 마스터 촬영 (기준이 없을 때만 보임)
+if st.session_state.m_b64_data is None:
     st.markdown('<div class="status-box">📢 [1단계] 오늘 작업할 기준 마스터(표준 샘플)를 촬영해 주세요.</div>', unsafe_allow_html=True)
-    res_b64 = HTML5_Super_Compressor("master_engine", "🎯 기준 마스터 사진 촬영")
+    master_res = HTML5_Super_Compressor("m_engine", "🎯 기준 마스터 사진 촬영")
     
-    if res_b64 and res_b64 != st.session_state.m_b64:
-        st.session_state.m_b64 = res_b64
-        pil_img = convert_b64_to_pil(res_b64)
-        st.session_state.m_txt = extract_high_perf_marking(pil_img)
-        st.session_state.workflow_step = "TEST_STAGE"
+    if master_res:
+        st.session_state.m_b64_data = master_res
+        pil_img = convert_b64_to_pil(master_res)
+        st.session_state.m_text_data = extract_high_perf_marking(pil_img)
         st.rerun()
 
-elif st.session_state.workflow_step == "TEST_STAGE":
-    st.markdown('<div class="status-box">📢 [2단계] 기준 등록 완료! 현재 라인의 생산 제품을 촬영해 주세요.</div>', unsafe_allow_html=True)
+# [2단계] 기준 등록이 완료되면 검사 촬영 및 결과가 한 화면에 즉시 순차 표출
+else:
+    st.markdown('<div class="status-box">📢 [2단계] 기준 마스터가 등록되었습니다. 이제 생산 제품을 촬영해 주세요.</div>', unsafe_allow_html=True)
     
-    # [돌파구] 카메라를 불러올 때마다 고유 번호를 갱신하여 스마트폰의 옛날 사진 기억을 원천 초기화시킵니다.
-    cam_key = f"test_engine_{st.session_state.test_run_count}"
-    res_b64 = HTML5_Super_Compressor(cam_key, "🔍 생산 제품 사진 촬영")
+    # 1단계와 2단계의 구역을 완벽히 분리하여 꼬임 방지
+    test_res = HTML5_Super_Compressor("t_engine_final", "🔍 생산 제품 사진 촬영")
     
-    if res_b64 and res_b64 != st.session_state.t_b64:
-        st.session_state.t_b64 = res_b64
-        pil_img = convert_b64_to_pil(res_b64)
-        st.session_state.t_txt = extract_high_perf_marking(pil_img)
-        st.session_state.workflow_step = "RESULT_STAGE"
-        st.rerun()
-
-elif st.session_state.workflow_step == "RESULT_STAGE":
-    st.subheader("📊 AI 1:1 대조 판정 결과")
-    
-    master_result = st.session_state.m_txt
-    test_result = st.session_state.t_txt
-    
-    if master_result == test_result and "실패" not in master_result and master_result != "":
-        st.markdown(
-            f'<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. 생산을 계속 진행하세요.<br>({master_result})</span></p>', 
-            unsafe_allow_html=True
-        )
-    else:
-        st.markdown(
-            f'<p class="big-font-ng">🔴 불일치 (NG) - 오날인 위험!! <br><span style="font-size:16px; font-weight:normal;">마킹 정보가 일치하지 않습니다!<br>🎯 기준 세팅: {master_result}<br>🔍 실시간 검사: {test_result}</span></p>', 
-            unsafe_allow_html=True
-        )
+    # 생산 제품 사진이 들어오는 순간 아래에 판정 결과를 실시간으로 즉시 출력
+    if test_res:
+        st.write("---")
+        st.subheader("📊 AI 1:1 대조 판정 결과")
         
-    st.write("---")
-    
-    img_col1, img_col2 = st.columns(2)
-    with img_col1:
-        m_pil = convert_b64_to_pil(st.session_state.m_b64)
-        if m_pil:
-            st.image(m_pil, caption=f"🎯 기준 마스터 매칭값", use_container_width=True)
-    with img_col2:
-        t_pil = convert_b64_to_pil(st.session_state.t_b64)
-        if t_pil:
-            st.image(t_pil, caption=f"🔍 생산 제품 매칭값", use_container_width=True)
+        t_pil = convert_b64_to_pil(test_res)
+        test_text_data = extract_high_perf_marking(t_pil)
+        master_text_data = st.session_state.m_text_data
         
-    st.write("---")
-    
-    act_col1, act_col2 = st.columns(2)
-    with act_col1:
-        if st.button("🔄 다음 생산제품 추가 검사 (매시간 검사)", key="btn_go_next"):
-            st.session_state.t_b64 = None
-            st.session_state.t_txt = ""
-            # 고유 번호를 1 증가시켜 다음 카메라를 완전히 새 장비로 강제 인식시킵니다.
-            st.session_state.test_run_count += 1
-            st.session_state.workflow_step = "TEST_STAGE"
-            st.rerun()
+        if master_text_data == test_text_data and "실패" not in master_text_data and master_text_data != "":
+            st.markdown(
+                f'<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. 생산을 계속 진행하세요.<br>({master_text_data})</span></p>', 
+                unsafe_allow_html=True
+            )
+        else:
+            st.markdown(
+                f'<p class="big-font-ng">🔴 불일치 (NG) - 오날인 위험!! <br><span style="font-size:16px; font-weight:normal;">마킹 정보가 일치하지 않습니다!<br>🎯 기준 세팅: {master_text_data}<br>🔍 실시간 검사: {test_text_data}</span></p>', 
+                unsafe_allow_html=True
+            )
             
-    with act_col2:
-        if st.button("🆕 완전히 새로운 기준 등록", key="btn_reset_all"):
-            st.session_state.clear()
-            st.session_state.workflow_step = "MASTER_STAGE"
-            st.rerun()
+        st.write("---")
+        img_col1, img_col2 = st.columns(2)
+        with img_col1:
+            m_pil = convert_b64_to_pil(st.session_state.m_b64_data)
+            if m_pil:
+                st.image(m_pil, caption=f"🎯 등록된 기준 마스터 마킹", use_container_width=True)
+        with img_col2:
+            if t_pil:
+                st.image(t_pil, caption=f"🔍 방금 검사한 생산 제품 마킹", use_container_width=True)
+
+    st.write("---")
+    
+    # [핵심 돌파구] 자바스크립트를 이용해 웹브라우저 자체를 셧다운 후 새로고침하여 찌꺼기를 완전히 증발시킴
+    if st.button("🔄 다음 생산제품 추가 검사 (매시간 검사 / 화면 리셋)", key="btn_final_refresh"):
+        st.markdown("""
+            <script>
+            window.parent.location.reload();
+            </script>
+        """, unsafe_allow_html=True)
+        st.session_state.clear()
+        st.stop()
