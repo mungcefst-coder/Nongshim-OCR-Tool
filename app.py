@@ -6,20 +6,40 @@ from PIL import Image, ImageOps
 import re
 
 # ==========================================
-# 1. 모바일 최적화 대형 UI 및 카메라 뷰어 커스텀
+# 1. 모바일 풀-스크린 카메라 뷰 및 대형 UI 강제 주입
 # ==========================================
 st.set_page_config(page_title="농심 부산생산1팀 검증 시스템", layout="wide")
 
 st.markdown("""
     <style>
     .reportview-container { background: #f0f2f6; }
-    /* 카메라 입력창을 모바일 가로폭에 꽉 차게 확대 */
-    [data-testid="stCameraInput"] {
+    
+    /* [핵심] 답답한 4:3 웹캠 상자를 모바일 화면에 맞춰 대폭 확대 */
+    [data-testid="stCameraInput"] > div {
         width: 100% !important;
-        max-width: 600px !important;
+        max-width: 500px !important;
         margin: 0 auto !important;
     }
-    /* 현장용 대형 액션 버튼 스타일 */
+    
+    /* 내부 비디오 라이브 스트리밍 화면 크기를 세로로 길게 늘려 시인성 확보 */
+    [data-testid="stCameraInput"] video {
+        width: 100% !important;
+        height: auto !important;
+        transform: scale(1.2); /* 화면을 120% 강제 확대하여 큼직하게 보이게 함 */
+        border-radius: 12px;
+    }
+    
+    /* Take Photo 촬영 버튼을 장갑 끼고도 누르기 쉽게 대형화 */
+    [data-testid="stCameraInput"] button {
+        height: 50px !important;
+        font-size: 18px !important;
+        background-color: #2c3e50 !important;
+        color: white !important;
+        border-radius: 8px !important;
+        margin-top: 10px !important;
+    }
+    
+    /* 현장용 액션 등록 버튼 스타일 */
     div.stButton > button {
         width: 100% !important;
         height: 55px !important;
@@ -41,7 +61,7 @@ st.markdown("""
 # 상단 타이틀
 st.image("nongshim_logo.png", width=130)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("모바일 풀-스크린 카메라 및 에러 원천 차단 버전 (V6.0)")
+st.caption("모바일 꽉 찬 화면 줌-인 카메라 적용 버전 (V6.1)")
 st.write("---")
 
 # ==========================================
@@ -66,14 +86,12 @@ def extract_nongshim_marking(img_pil):
         h_size = int((float(img_pil.height) * float(w_percent)))
         img_pil = img_pil.resize((800, h_size), Image.Resampling.LANCZOS)
     
-    # 90도씩 돌려가며 3방향 정밀 스캔 (세로 촬영 대응)
     rotations = [0, 90, 270]
     for angle in rotations:
         test_img = np.array(img_pil if angle == 0 else img_pil.rotate(angle, expand=True))
         result = reader.readtext(test_img, detail=0)
         combined = "".join(result).upper().replace(" ", "")
         
-        # 날짜 포맷 추출 (. 점 포함 패턴 대응)
         date_match = re.search(r'\d{2}\.\d{2}\.\d{4}|\d{8}', combined)
         if date_match:
             date_part = date_match.group(0)
@@ -97,15 +115,13 @@ if "stored_test_text" not in st.session_state:
     st.session_state.stored_test_text = ""
 
 # ==========================================
-# 4. [상단] 단일 통합 실시간 카메라 배치 (핵심 변혁 구역)
+# 4. [상단] 단일 통합 실시간 카메라 배치
 # ==========================================
 st.subheader("📸 현장 실시간 카메라 촬영")
-st.info("💡 렌즈 충돌을 막기 위해 카메라를 하나로 통합했습니다. 반전 버튼을 자유롭게 사용하세요!")
 
-# 화면에 단 한 개만 존재하는 큼직한 실시간 카메라 창
+# 스타일 주입으로 이제 이전보다 훨씬 큼직하게 보입니다.
 live_photo = st.camera_input("일부인이 선명하게 보이도록 조준 후 아래 'Take Photo'를 누르세요")
 
-# 사진이 촬영되었을 때만 어디에 저장할지 선택하는 큼직한 버튼 등장
 if live_photo:
     st.write("👇 방금 찍은 사진을 어디로 등록할지 선택하세요:")
     save_col1, save_col2 = st.columns(2)
@@ -160,7 +176,7 @@ t_txt = st.session_state.stored_test_text
 if m_txt and t_txt:
     if m_txt == t_txt:
         st.markdown(
-            f'<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 정상입니다. ({m_txt})</span></p>', 
+            f'<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. ({m_txt})</span></p>', 
             unsafe_allow_html=True
         )
     else:
