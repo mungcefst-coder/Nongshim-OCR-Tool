@@ -13,7 +13,7 @@ st.set_page_config(page_title="농심 일부인 검증 시스템", layout="wide"
 st.markdown("""
     <style>
     .reportview-container { background: #f0f2f6; }
-    /* 큰 버튼 스타일 */
+    /* 현장 작업용 대형 버튼 스타일 */
     div.stButton > button {
         width: 100% !important;
         height: 60px !important;
@@ -53,7 +53,7 @@ st.markdown("""
 # ==========================================
 st.image("nongshim_logo.png", width=150)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("스마트폰 기본 카메라 연동형 오날인 예방 툴 (인식률 및 사용성 고도화 버전)")
+st.caption("스마트폰 기본 카메라 연동형 오날인 예방 툴 (안정성 극대화 버전)")
 st.write("---")
 
 # ==========================================
@@ -86,13 +86,11 @@ with col1:
     st.markdown("### 🎯 1단계: [기준] 마스터 등록")
     st.info("오늘 작업할 올바른 일부인을 촬영하여 기준값으로 세팅하세요.")
     
-    # accept_multiple_files=False 및 중복 방지 고유 키 설정
-    # capture="environment" 속성이 스마트폰 후면 카메라 어플을 바로 호출합니다.
+    # 버그를 유발하던 capture 옵션을 제거하여 호환성을 100%로 올렸습니다.
     master_file = st.file_uploader(
         "📸 터치하여 [기준] 사진 촬영", 
         type=["jpg", "jpeg", "png"], 
-        key="uploader_master",
-        capture="environment"
+        key="uploader_master"
     )
     
     if master_file:
@@ -105,8 +103,7 @@ with col2:
     test_file = st.file_uploader(
         "📸 터치하여 [검사] 사진 촬영", 
         type=["jpg", "jpeg", "png"], 
-        key="uploader_test",
-        capture="environment"
+        key="uploader_test"
     )
     
     if test_file:
