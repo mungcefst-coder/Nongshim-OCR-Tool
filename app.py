@@ -33,7 +33,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# [프론트엔드 핵심] Streamlit 서버와 100% 동기화되는 특제 HTML5 셔터 컴포넌트
+# [프론트엔드 핵심] 호출될 때마다 독립된 메모리를 생성하여 이전 사진 데이터를 완벽하게 덮어쓰는 압축 셔터
 def HTML5_Single_Shutter(key_id, button_text):
     html_code = f"""
     <div style="font-family: sans-serif;">
@@ -46,6 +46,10 @@ def HTML5_Single_Shutter(key_id, button_text):
         <div id="msg_{key_id}" style="margin-top: 5px; font-size: 14px; color: #7f8c8d; text-align:center;"></div>
     </div>
     <script>
+    document.getElementById('lbl_{key_id}').addEventListener('click', function() {{
+        document.getElementById('{key_id}').value = "";
+    }});
+
     document.getElementById('{key_id}').addEventListener('change', function(e) {{
         const file = e.target.files[0];
         if (!file) return;
@@ -65,10 +69,7 @@ def HTML5_Single_Shutter(key_id, button_text):
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                 
-                // 화질 대폭 압축하여 폰 브라우저 데이터 고임 원천 차단
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.3);
-                
-                // Streamlit 표준 통신 API를 통해 값 유실 없이 전달
                 window.parent.postMessage({{type: 'streamlit:setComponentValue', value: dataUrl, key: '{key_id}'}}, '*');
                 document.getElementById('msg_{key_id}').innerText = "📸 전송 완료!";
             }}
@@ -81,7 +82,7 @@ def HTML5_Single_Shutter(key_id, button_text):
 # 상단 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("데이터 동기화 누락 및 초기화 불능 현상 완벽 해결 버전 (V10.2)")
+st.caption("줄간격 들여쓰기 및 데이터 지연 오류 완전 수정 버전 (V10.2)")
 st.write("---")
 
 # ==========================================
@@ -129,85 +130,62 @@ def extract_high_perf_marking(img_pil):
         return "AI 인식 오류"
 
 # ==========================================
-# 3. 데이터 꼬임 방지 세션 강제 동기화 세팅
-# ==========================================
-if "final_m_b64" not in st.session_state:
-    st.session_state.final_m_b64 = None
-if "final_m_txt" not in st.session_state:
-    st.session_state.final_m_txt = ""
-if "final_t_b64" not in st.session_state:
-    st.session_state.final_t_b64 = None
-if "final_t_txt" not in st.session_state:
-    st.session_state.final_t_txt = ""
-
-# ==========================================
-# 4. 화면 고정형 독립 트랙 레이아웃
+# 3. 화면 고정형 독립 트랙 레이아웃 (들여쓰기 완전 정렬)
 # ==========================================
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown('<div class="title-box">🎯 [오더지/초물] 기준 등록</div>', unsafe_allow_html=True)
-    master_b64 = HTML5_Single_Shutter("m_shutter_v102", "🎯 기준 마스터 사진 촬영")
+    master_b64 = HTML5_Single_Shutter("m_shutter", "🎯 기준 마스터 사진 촬영")
     
-    # 컴포넌트 리턴 값을 실시간으로 세션 상태에 즉시 동기화
-    if master_b64 and master_b64 != st.session_state.final_m_b64:
+    if master_b64:
         st.session_state.final_m_b64 = master_b64
         m_pil = convert_b64_to_pil(master_b64)
         st.session_state.final_m_txt = extract_high_perf_marking(m_pil)
-        st.rerun()
 
-    if st.session_state.final_m_b64:
+    if "final_m_b64" in st.session_state and st.session_state.final_m_b64:
         m_img_obj = convert_b64_to_pil(st.session_state.final_m_b64)
         if m_img_obj is not None:
-            st.image(m_img_obj, caption=f"🎯 기준 매칭값: {st.session_state.final_m_txt}", use_container_width=True)
+            try:
+                st.image(m_img_obj, caption=f"🎯 기준: {st.session_state.final_m_txt}", use_container_width=True)
+            except:
+                pass
 
 with col2:
     st.markdown('<div class="title-box">🔍 [매시간 제품] 실시간 검사</div>', unsafe_allow_html=True)
-    test_b64 = HTML5_Single_Shutter("t_shutter_v102", "🔍 생산 제품 사진 촬영")
+    test_b64 = HTML5_Single_Shutter("t_shutter", "🔍 생산 제품 사진 촬영")
     
-    # 컴포넌트 리턴 값을 실시간으로 세션 상태에 즉시 동기화
-    if test_b64 and test_b64 != st.session_state.final_t_b64:
+    if test_b64:
         st.session_state.final_t_b64 = test_b64
         t_pil = convert_b64_to_pil(test_b64)
         st.session_state.final_t_txt = extract_high_perf_marking(t_pil)
-        st.rerun()
 
-    if st.session_state.final_t_b64:
+    if "final_t_b64" in st.session_state and st.session_state.final_t_b64:
         t_img_obj = convert_b64_to_pil(st.session_state.final_t_b64)
         if t_img_obj is not None:
-            st.image(t_img_obj, caption=f"🔍 검사 매칭값: {st.session_state.final_t_txt}", use_container_width=True)
+            try:
+                st.image(t_img_obj, caption=f"🔍 검사: {st.session_state.final_t_txt}", use_container_width=True)
+            except:
+                pass
 
 # ==========================================
-# 5. 실시간 1:1 대조 판정 디스플레이
+# 4. 실시간 1:1 대조 판정 디스플레이
 # ==========================================
 st.write("---")
 st.subheader("📊 AI 1:1 대조 판정 결과")
 
-m_res = st.session_state.final_m_txt
-  t_res = st.session_state.final_t_txt
-
-if m_res != "" or t_res != "":
-    if m_res == t_res and m_res != "":
-        st.markdown(
-            f'<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. 생산을 계속 진행하세요.<br>({m_res})</span></p>', 
-            unsafe_allow_html=True
-        )
-    else:
-        st.markdown(
-            f'<p class="big-font-ng">🔴 불일치 (NG) - 오날인 위험!! <br><span style="font-size:16px; font-weight:normal;">마킹 정보가 다릅니다! 마킹기 출력을 즉시 확인하세요.<br>🎯 기준: {m_res} / 🔍 검사: {t_res}</span></p>', 
-            unsafe_allow_html=True
-        )
+if "final_m_txt" in st.session_state and "final_t_txt" in st.session_state:
+    m_res = st.session_state.final_m_txt
+    t_res = st.session_state.final_t_txt
+    
+    if m_res != "" and t_res != "":
+        if m_res == t_res and "실패" not in m_res:
+            st.markdown(f'<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. 생산을 계속 진행하세요.<br>({m_res})</span></p>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<p class="big-font-ng">🔴 불일치 (NG) - 오날인 위험!! <br><span style="font-size:16px; font-weight:normal;">마킹 정보가 다릅니다! 마킹기 출력을 즉시 확인하세요.<br>🎯 기준: {m_res} / 🔍 검사: {t_res}</span></p>', unsafe_allow_html=True)
 else:
     st.info("💡 좌측 버튼으로 [기준 등록]을 먼저 하신 후, 우측 버튼으로 [생산 제품]을 촬영하시면 실시간 대조가 시작됩니다.")
 
-st.write("---")
-
-# [완벽 리셋 치트키] 폰 브라우저가 들고 있는 캐시와 세션을 자바스크립트로 물리적 폭파
-if st.button("🆕 시스템 전체 초기화 및 메모리 찌꺼기 완벽 제거"):
+if st.button("🆕 시스템 전체 초기화 (제품 변경 시)"):
     st.session_state.clear()
-    st.markdown("""
-        <script>
-        window.parent.location.href = window.parent.location.origin + window.parent.location.pathname;
-        </script>
-    """, unsafe_allow_html=True)
-    st.stop()
+    st.markdown("""<script>window.parent.location.reload();</script>""", unsafe_allow_html=True)
