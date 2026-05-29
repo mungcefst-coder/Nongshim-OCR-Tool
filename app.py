@@ -30,7 +30,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# [프론트엔드 핵심 기술] 폰 카메라 호출 즉시 메모리단에서 가로 500px, 화질 30%로 초강력 초고속 압축 차단막 생성
+# [프론트엔드 기술] 폰 카메라 호출 즉시 메모리단에서 가로 500px, 화질 30%로 초강력 압축 (튕김 절대 불가)
 def HTML5_Super_Compressor(key_id, button_text):
     html_code = f"""
     <div style="font-family: sans-serif;">
@@ -60,7 +60,6 @@ def HTML5_Super_Compressor(key_id, button_text):
                 canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                // 화질을 30%로 낮춰 파일 크기를 수십 KB로 파괴 (튕김 절대 불가)
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.3);
                 window.parent.postMessage({{type: 'streamlit:setComponentValue', value: dataUrl, key: '{key_id}'}}, '*');
                 document.getElementById('msg_{key_id}').innerText = "📸 전송 완료!";
@@ -74,7 +73,7 @@ def HTML5_Super_Compressor(key_id, button_text):
 # 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("초강력 자바스크립트 압축 셔터 & 고성능 파이썬 EasyOCR 융합 하이브리드 버전 (V9.0)")
+st.caption("초강력 자바스크립트 압축 셔터 & 고성능 파이썬 EasyOCR 융합 하이브리드 버전 (V9.1)")
 st.write("---")
 
 # ==========================================
@@ -89,15 +88,22 @@ try:
 except Exception as e:
     st.error(f"⚠️ AI 엔진 로드 오류: {e}")
 
-def extract_high_perf_marking(base64_str):
+# Base64 데이터를 진짜 이미지 객체로 디코딩해주는 함수
+def convert_b64_to_pil(base64_str):
     if not base64_str:
-        return ""
+        return None
     try:
         header, encoded = base64_str.split(",", 1)
         data = base64.b64decode(encoded)
         img_pil = Image.open(BytesIO(data))
-        img_pil = ImageOps.exif_transpose(img_pil)
-        
+        return ImageOps.exif_transpose(img_pil)
+    except:
+        return None
+
+def extract_high_perf_marking(img_pil):
+    if img_pil is None:
+        return "이미지 분석 불가"
+    try:
         # 누워있는 세로 마킹을 기어코 잡아내기 위해 사방(0도, 90도, 270도) 회전 정밀 추적
         rotations = [0, 90, 270]
         for angle in rotations:
@@ -115,7 +121,7 @@ def extract_high_perf_marking(base64_str):
                 return f"📅 {date_part} / 📦 {lot_part}".strip()
         return combined if "".join(result).strip() else "날짜 인식 실패"
     except:
-        return "이미지 디코딩 실패"
+        return "AI 인식 오류 발생"
 
 # ==========================================
 # 3. 워크플로우 단계 제어 메모리 세팅
@@ -141,7 +147,8 @@ if st.session_state.workflow_step == "MASTER_STAGE":
     
     if res_b64 and res_b64 != st.session_state.m_b64:
         st.session_state.m_b64 = res_b64
-        st.session_state.m_txt = extract_high_perf_marking(res_b64)
+        pil_img = convert_b64_to_pil(res_b64)
+        st.session_state.m_txt = extract_high_perf_marking(pil_img)
         st.session_state.workflow_step = "TEST_STAGE"
         st.rerun()
 
@@ -151,7 +158,8 @@ elif st.session_state.workflow_step == "TEST_STAGE":
     
     if res_b64 and res_b64 != st.session_state.t_b64:
         st.session_state.t_b64 = res_b64
-        st.session_state.t_txt = extract_high_perf_marking(res_b64)
+        pil_img = convert_b64_to_pil(res_b64)
+        st.session_state.t_txt = extract_high_perf_marking(pil_img)
         st.session_state.workflow_step = "RESULT_STAGE"
         st.rerun()
 
@@ -174,12 +182,16 @@ elif st.session_state.workflow_step == "RESULT_STAGE":
         
     st.write("---")
     
-    # 획득 이미지 복기
+    # [수정 구역] 텍스트가 아닌 진짜 이미지 객체(PIL)로 디코딩하여 에러 원천 해결
     img_col1, img_col2 = st.columns(2)
     with img_col1:
-        st.image(st.session_state.m_b64, caption=f"🎯 기준 마스터 매칭값", use_container_width=True)
+        m_pil = convert_b64_to_pil(st.session_state.m_b64)
+        if m_pil:
+            st.image(m_pil, caption=f"🎯 기준 마스터 매칭값", use_container_width=True)
     with img_col2:
-        st.image(st.session_state.t_b64, caption=f"🔍 생산 제품 매칭값", use_container_width=True)
+        t_pil = convert_b64_to_pil(st.session_state.t_b64)
+        if t_pil:
+            st.image(t_pil, caption=f"🔍 생산 제품 매칭값", use_container_width=True)
         
     st.write("---")
     
