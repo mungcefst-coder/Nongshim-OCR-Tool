@@ -27,10 +27,18 @@ st.markdown("""
         font-size:32px !important; color: #e74c3c; font-weight: bold; 
         background-color: #fadbd8; padding: 25px; border-radius: 15px; text-align: center; border: 4px solid #e74c3c; 
     }
+    /* 대형 액션 버튼 스타일 */
+    div.stButton > button {
+        width: 100% !important;
+        height: 60px !important;
+        font-size: 20px !important;
+        font-weight: bold !important;
+        border-radius: 12px !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
-# [프론트엔드 기술] 폰 카메라 호출 즉시 메모리단에서 가로 500px, 화질 30%로 초강력 압축 (튕김 절대 불가)
+# [프론트엔드 기술] 폰 카메라 호출 즉시 메모리단에서 초강력 압축 (튕김 절대 불가)
 def HTML5_Super_Compressor(key_id, button_text):
     html_code = f"""
     <div style="font-family: sans-serif;">
@@ -73,7 +81,7 @@ def HTML5_Super_Compressor(key_id, button_text):
 # 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("초강력 자바스크립트 압축 셔터 & 고성능 파이썬 EasyOCR 융합 하이브리드 버전 (V9.1)")
+st.caption("버튼 오작동 및 캐시 꼬임 현상 완벽 방어 버전 (V9.2)")
 st.write("---")
 
 # ==========================================
@@ -88,7 +96,6 @@ try:
 except Exception as e:
     st.error(f"⚠️ AI 엔진 로드 오류: {e}")
 
-# Base64 데이터를 진짜 이미지 객체로 디코딩해주는 함수
 def convert_b64_to_pil(base64_str):
     if not base64_str:
         return None
@@ -104,14 +111,12 @@ def extract_high_perf_marking(img_pil):
     if img_pil is None:
         return "이미지 분석 불가"
     try:
-        # 누워있는 세로 마킹을 기어코 잡아내기 위해 사방(0도, 90도, 270도) 회전 정밀 추적
         rotations = [0, 90, 270]
         for angle in rotations:
             test_img = np.array(img_pil if angle == 0 else img_pil.rotate(angle, expand=True))
             result = reader.readtext(test_img, detail=0)
             combined = "".join(result).upper().replace(" ", "")
             
-            # 유통기한 포맷 추출 (. 점 포함 양식 완벽 대응)
             date_match = re.search(r'\d{2}\.\d{2}\.\d{4}|\d{8}', combined)
             if date_match:
                 date_part = date_match.group(0)
@@ -182,7 +187,6 @@ elif st.session_state.workflow_step == "RESULT_STAGE":
         
     st.write("---")
     
-    # [수정 구역] 텍스트가 아닌 진짜 이미지 객체(PIL)로 디코딩하여 에러 원천 해결
     img_col1, img_col2 = st.columns(2)
     with img_col1:
         m_pil = convert_b64_to_pil(st.session_state.m_b64)
@@ -195,6 +199,7 @@ elif st.session_state.workflow_step == "RESULT_STAGE":
         
     st.write("---")
     
+    # [핵심 버그 수정 구역] 버튼 클릭 시 세션 가상 메모리를 완벽하게 포맷하여 무한루프 탈출
     act_col1, act_col2 = st.columns(2)
     with act_col1:
         if st.button("🔄 다음 생산제품 추가 검사 (매시간 검사)", key="btn_go_next"):
@@ -202,7 +207,9 @@ elif st.session_state.workflow_step == "RESULT_STAGE":
             st.session_state.t_txt = ""
             st.session_state.workflow_step = "TEST_STAGE"
             st.rerun()
+            
     with act_col2:
         if st.button("🆕 완전히 새로운 기준 등록", key="btn_reset_all"):
             st.session_state.clear()
+            st.session_state.workflow_step = "MASTER_STAGE"
             st.rerun()
