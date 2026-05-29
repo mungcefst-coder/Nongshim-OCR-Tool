@@ -6,6 +6,7 @@ from PIL import Image, ImageOps
 import re
 import base64
 from io import BytesIO
+import time
 
 # ==========================================
 # 1. 페이지 기본 설정 및 모바일 대형 UI 스타일
@@ -37,7 +38,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# [울트라 핵심 기술] 브라우저가 옛날 사진을 재사용하지 못하도록 이벤트를 완벽하게 초기화하는 엔진
+# [프론트엔드 핵심] 사진 전송 즉시 0.1초 만에 용량을 압축하여 전송하는 특제 컴포넌트
 def HTML5_Super_Compressor(key_id, button_text):
     html_code = f"""
     <div style="font-family: sans-serif;">
@@ -50,16 +51,10 @@ def HTML5_Super_Compressor(key_id, button_text):
         <div id="msg_{key_id}" style="margin-top: 5px; font-size: 14px; color: #7f8c8d; text-align:center;"></div>
     </div>
     <script>
-    // [치트키] 버튼 영역을 터치하는 순간, 기존 브라우저가 기억하던 input 값을 공중분해 시킵니다.
-    document.getElementById('lbl_{key_id}').addEventListener('click', function() {{
-        document.getElementById('{key_id}').value = ""; 
-    }});
-
     document.getElementById('{key_id}').addEventListener('change', function(e) {{
         const file = e.target.files[0];
         if (!file) return;
         document.getElementById('msg_{key_id}').innerText = "⚡ 포장재 이미지 고강도 압축 중...";
-        
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = function(evt) {{
@@ -73,10 +68,8 @@ def HTML5_Super_Compressor(key_id, button_text):
                 canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
                 const dataUrl = canvas.toDataURL('image/jpeg', 0.3);
                 
-                // 데이터를 최종 전송 후 즉시 물리적 흔적 완전 소멸
                 window.parent.postMessage({{type: 'streamlit:setComponentValue', value: dataUrl, key: '{key_id}'}}, '*');
                 document.getElementById('msg_{key_id}').innerText = "📸 전송 완료!";
             }}
@@ -89,7 +82,7 @@ def HTML5_Super_Compressor(key_id, button_text):
 # 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("스마트폰 기본 카메라 자동 완성 버그 강제 분쇄 버전 (V9.6)")
+st.caption("초정밀 타임스탬프 기반 캐시 폭파 버전 (V9.7)")
 st.write("---")
 
 # ==========================================
@@ -154,9 +147,12 @@ if "t_txt" not in st.session_state:
 # 4. 단방향 완벽 제어 UI 시퀀스
 # ==========================================
 
+# 매 초마다 변하는 고유 ID 생성 (브라우저가 이전 사진을 재사용하는 버그 완전 차단)
+timestamp_key = str(int(time.time()))
+
 if st.session_state.step == "STAGE_1":
     st.markdown('<div class="status-box">📢 [1단계] 오늘 작업할 기준 마스터(표준 샘플)를 촬영해 주세요.</div>', unsafe_allow_html=True)
-    m_res = HTML5_Super_Compressor("m_comp_final", "🎯 기준 마스터 사진 촬영")
+    m_res = HTML5_Super_Compressor(f"m_{timestamp_key}", "🎯 기준 마스터 사진 촬영")
     
     if m_res:
         st.session_state.m_b64 = m_res
@@ -167,7 +163,7 @@ if st.session_state.step == "STAGE_1":
 
 elif st.session_state.step == "STAGE_2":
     st.markdown('<div class="status-box">📢 [2단계] 기준 등록 완료! 현재 라인의 생산 제품을 촬영해 주세요.</div>', unsafe_allow_html=True)
-    t_res = HTML5_Super_Compressor("t_comp_final", "🔍 생산 제품 사진 촬영")
+    t_res = HTML5_Super_Compressor(f"t_{timestamp_key}", "🔍 생산 제품 사진 촬영")
     
     if t_res:
         st.session_state.t_b64 = t_res
