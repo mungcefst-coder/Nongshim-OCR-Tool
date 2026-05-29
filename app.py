@@ -45,7 +45,6 @@ st.markdown("""
 # ==========================================
 # 위키미디어의 공식 농심 로고 벡터 이미지를 활용합니다.
 st.image("nongshim_logo.png", width=180)
-)
 st.title("🍜 수출전문공장 일부인 1:1 비교 검증 시스템")
 st.caption("공장 현장 작업자 오날인(Mis-printing) 에러 방지용 단독형 AI 프로토타입")
 st.write("---")
