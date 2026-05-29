@@ -11,7 +11,7 @@
         .step-box { background: #ebf5fb; border-left: 5px solid #3498db; padding: 15px; border-radius: 8px; font-size: 16px; font-weight: bold; margin-bottom: 20px; }
         .cam-btn { display: block; width: 100%; height: 65px; background-color: #3498db; color: white; text-align: center; line-height: 65px; font-size: 20px; font-weight: bold; border-radius: 15px; cursor: pointer; box-shadow: 0 4px 6px rgba(0,0,0,0.15); margin-bottom: 20px; }
         .preview-area { display: flex; gap: 10px; margin-bottom: 20px; }
-        .preview-box { flex: 1; background: white; padding: 10px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        .preview-box { flex: 1; background: white; padding: 10px; border-radius: 10px; text-align: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); min-height: 120px; }
         .preview-box img { width: 100%; height: auto; border-radius: 6px; display: none; margin-top: 10px; }
         .result-box { display: none; padding: 20px; border-radius: 15px; text-align: center; font-size: 26px; font-weight: bold; margin-top: 10px; }
         .ok { background-color: #e8f8f5; color: #2ecc71; border: 3px solid #2ecc71; }
@@ -25,7 +25,7 @@
 
     <div class="header">
         <div class="title">🍜 부산생산1팀 일부인 검증 시스템</div>
-        <div style="font-size: 13px; color: #7f8c8d;">스마트폰 하드웨어 카메라 초고속 압축 엔진 (V8.0)</div>
+        <div style="font-size: 13px; color: #7f8c8d;">초강력 비닐 포장재 용량 다이어트 엔진 (V8.1)</div>
     </div>
 
     <div id="guide" class="step-box">📢 [1단계] 오늘 작업할 기준 마스터(표준 샘플)를 촬영해 주세요.</div>
@@ -38,12 +38,12 @@
     <div class="preview-area">
         <div class="preview-box">
             <strong>🎯 기준 마스터</strong>
-            <div id="master-txt" style="font-family: monospace; color: #2980b9; margin-top:5px; font-weight:bold;"></div>
+            <div id="master-txt" style="font-family: monospace; color: #2980b9; margin-top:5px; font-weight:bold; word-break: break-all;"></div>
             <img id="img-master">
         </div>
         <div class="preview-box">
             <strong>🔍 생산 제품</strong>
-            <div id="test-txt" style="font-family: monospace; color: #27ae60; margin-top:5px; font-weight:bold;"></div>
+            <div id="test-txt" style="font-family: monospace; color: #27ae60; margin-top:5px; font-weight:bold; word-break: break-all;"></div>
             <img id="img-test">
         </div>
     </div>
@@ -58,17 +58,16 @@
     <script>
         let currentStep = "MASTER";
         let masterCleanText = "";
-        let testCleanText = "";
 
         const trigger = document.getElementById('camera-trigger');
         const btnLabel = document.getElementById('btn-label');
         const guide = document.getElementById('guide');
 
-        trigger.addEventListener('change', function(e) {
+        function handleFileSelect(e) {
             const file = e.target.files[0];
             if (!file) return;
 
-            guide.innerText = "⚡ 폰 내부에서 사진 초고속 압축 및 AI 분석 중...";
+            guide.innerText = "⚡ 화려한 포장재 이미지 초강력 압축 중...";
             
             const reader = new FileReader();
             reader.readAsDataURL(file);
@@ -76,9 +75,9 @@
                 const img = new Image();
                 img.src = event.target.result;
                 img.onload = function() {
-                    // [핵심 기술] 브라우저 과부하를 막기 위해 가로 600px로 사진 해상도 파괴 압축
+                    // [초강력 다이어트 처방] 가로를 500px로 더 줄이고 압축률을 0.3으로 떨어뜨려 용량 폭발 원천 차단
                     const canvas = document.createElement('canvas');
-                    const maxWidth = 600;
+                    const maxWidth = 500;
                     const scale = maxWidth / img.width;
                     canvas.width = maxWidth;
                     canvas.height = img.height * scale;
@@ -86,24 +85,22 @@
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     
-                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+                    // 화질을 30% 수준으로 떨어뜨려 수십 KB로 강제 고정 (AI 글자 인식에는 문제 없음)
+                    const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.3);
                     
-                    // 화면에 압축된 가벼운 이미지 표출
                     if (currentStep === "MASTER") {
                         const targetImg = document.getElementById('img-master');
                         targetImg.src = compressedDataUrl;
                         targetImg.style.display = "block";
                         
-                        // 고속 모바일 엔진으로 영문/숫자 검출
+                        guide.innerText = "🔍 AI가 기준 문자 판독 중...";
                         Tesseract.recognize(compressedDataUrl, 'eng').then(({ data: { text } }) => {
-                            masterCleanText = text.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                            // 농심 유통기한 고유 패턴 매칭 (8자리 연속 숫자 혹은 점 포함 날짜 추출)
-                            let dateMatch = masterCleanText.match(/\d{8}/);
-                            if(!dateMatch) dateMatch = text.match(/\d{2}\.\d{2}\.\d{4}/);
+                            let cleanText = text.toUpperCase().replace(/[^A-Z0-9.]/g, "");
+                            let dateMatch = cleanText.match(/\d{2}\.\d{2}\.\d{4}|\d{8}/);
                             
-                            document.getElementById('master-txt').innerText = dateMatch ? dateMatch[0] : "날짜 검출 실패";
+                            masterCleanText = dateMatch ? dateMatch[0] : "날짜 미검출";
+                            document.getElementById('master-txt').innerText = masterCleanText;
                             
-                            // 2단계 생산제품 모드로 강제 스위칭
                             currentStep = "TEST";
                             guide.innerText = "📢 [2단계] 기준 등록 완료! 현재 라인의 생산 제품을 촬영해 주세요.";
                             btnLabel.innerHTML = "🔍 생산 제품 사진 촬영 <input type='file' accept='image/*' capture='environment' id='camera-trigger' style='display: none;'>";
@@ -114,20 +111,19 @@
                         targetImg.src = compressedDataUrl;
                         targetImg.style.display = "block";
                         
+                        guide.innerText = "🔍 AI가 생산 제품 문자 판독 중...";
                         Tesseract.recognize(compressedDataUrl, 'eng').then(({ data: { text } }) => {
-                            testCleanText = text.toUpperCase().replace(/[^A-Z0-9]/g, "");
-                            let dateMatch = testCleanText.match(/\d{8}/);
-                            if(!dateMatch) dateMatch = text.match(/\d{2}\.\d{2}\.\d{4}/);
+                            let cleanText = text.toUpperCase().replace(/[^A-Z0-9.]/g, "");
+                            let dateMatch = cleanText.match(/\d{2}\.\d{2}\.\d{4}|\d{8}/);
                             
-                            const finalTestText = dateMatch ? dateMatch[0] : "날짜 검출 실패";
+                            const finalTestText = dateMatch ? dateMatch[0] : "날짜 미검출";
                             document.getElementById('test-txt').innerText = finalTestText;
                             
-                            // 최종 판정 연산
                             const resDisplay = document.getElementById('result-display');
                             resDisplay.style.display = "block";
                             
                             const mFinal = document.getElementById('master-txt').innerText;
-                            if (mFinal === finalTestText && mFinal !== "날짜 검출 실패") {
+                            if (mFinal === finalTestText && mFinal !== "날짜 미검출") {
                                 resDisplay.className = "result-box ok";
                                 resDisplay.innerHTML = "🟢 일치 (OK)<br><span style='font-size:14px; font-weight:normal;'>일부인이 정상입니다. 생산을 진행하세요.</span>";
                             } else {
@@ -142,13 +138,15 @@
                     }
                 }
             }
-        });
+        }
 
         function rebindTrigger() {
-            document.getElementById('camera-trigger').addEventListener('change', arguments.callee);
-            // 페이지 스크롤을 부드럽게 아래로 이동시켜 결과창 포커싱
+            document.getElementById('camera-trigger').removeEventListener('change', handleFileSelect);
+            document.getElementById('camera-trigger').addEventListener('change', handleFileSelect);
             window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
         }
+
+        trigger.addEventListener('change', handleFileSelect);
 
         function goNextTest() {
             currentStep = "TEST";
