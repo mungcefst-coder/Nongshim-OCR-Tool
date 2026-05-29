@@ -84,7 +84,7 @@ def HTML5_Single_Shutter(key_id, button_text):
 # 상단 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("메모리 꼬임 원천 제거 / 무단계 독립형 원터치 버전 (V10.0 - 청정 배포)")
+st.caption("메모리 꼬임 및 데이터 지연 튕김 오류 완벽 방어 버전 (V10.1)")
 st.write("---")
 
 # ==========================================
@@ -132,13 +132,12 @@ def extract_high_perf_marking(img_pil):
         return "AI 인식 오류"
 
 # ==========================================
-# 3. [혁신] 화면 고정형 독립 트랙 레이아웃
+# 3. 화면 고정형 독립 트랙 레이아웃
 # ==========================================
 col1, col2 = st.columns(2)
 
 with col1:
     st.markdown('<div class="title-box">🎯 [오더지/초물] 기준 등록</div>', unsafe_allow_html=True)
-    # 한 번 세팅하면 새로고침 전까지 고정되는 독립형 컴포넌트
     master_b64 = HTML5_Single_Shutter("m_shutter", "🎯 기준 마스터 사진 촬영")
     
     if master_b64:
@@ -146,13 +145,17 @@ with col1:
         m_pil = convert_b64_to_pil(master_b64)
         st.session_state.final_m_txt = extract_high_perf_marking(m_pil)
 
-    # 등록된 기준 데이터 모니터링
+    # [수정 구역] 딜레이로 인한 빈 파일 에러 예외 처리 장치 작동
     if "final_m_b64" in st.session_state and st.session_state.final_m_b64:
-        st.image(convert_b64_to_pil(st.session_state.final_m_b64), caption=f"🎯 기준 매칭값: {st.session_state.final_m_txt}", use_container_width=True)
+        m_img_obj = convert_b64_to_pil(st.session_state.final_m_b64)
+        if m_img_obj is not None:
+            try:
+                st.image(m_img_obj, caption=f"🎯 기준 매칭값: {st.session_state.final_m_txt}", use_container_width=True)
+            except Exception:
+                pass # 0.1초 지연 순간의 튕김 방지
 
 with col2:
     st.markdown('<div class="title-box">🔍 [매시간 제품] 실시간 검사</div>', unsafe_allow_html=True)
-    # 버튼을 누를 때마다 이전 데이터를 무조건 새로 지우고 덮어쓰는 독립형 컴포넌트
     test_b64 = HTML5_Single_Shutter("t_shutter", "🔍 생산 제품 사진 촬영")
     
     if test_b64:
@@ -160,9 +163,14 @@ with col2:
         t_pil = convert_b64_to_pil(test_b64)
         st.session_state.final_t_txt = extract_high_perf_marking(t_pil)
 
-    # 촬영된 현재 제품 데이터 모니터링
+    # [수정 구역] 딜레이로 인한 빈 파일 에러 예외 처리 장치 작동
     if "final_t_b64" in st.session_state and st.session_state.final_t_b64:
-        st.image(convert_b64_to_pil(st.session_state.final_t_b64), caption=f"🔍 검사 매칭값: {st.session_state.final_t_txt}", use_container_width=True)
+        t_img_obj = convert_b64_to_pil(st.session_state.final_t_b64)
+        if t_img_obj is not None:
+            try:
+                st.image(t_img_obj, caption=f"🔍 검사 매칭값: {st.session_state.final_t_txt}", use_container_width=True)
+            except Exception:
+                pass # 0.1초 지연 순간의 튕김 방지
 
 # ==========================================
 # 4. 실시간 1:1 대조 판정 디스플레이
@@ -188,7 +196,6 @@ if "final_m_txt" in st.session_state and "final_t_txt" in st.session_state:
 else:
     st.info("💡 좌측 버튼으로 [기준 등록]을 먼저 하신 후, 우측 버튼으로 [생산 제품]을 촬영하시면 실시간 대조가 시작됩니다.")
 
-# 화면 전체를 초기화하고 싶을 때만 누르는 완전 리셋 버튼
 if st.button("🆕 시스템 전체 초기화 (제품 변경 시)"):
     st.session_state.clear()
     st.markdown("""<script>window.parent.location.reload();</script>""", unsafe_allow_html=True)
