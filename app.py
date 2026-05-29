@@ -9,11 +9,9 @@ from PIL import Image
 # ==========================================
 st.set_page_config(page_title="농심 일부인 검증 시스템", layout="wide")
 
-# 모바일 화면에서 버튼을 큼직하게 만들고 시인성을 높이는 가시성 커스텀
 st.markdown("""
     <style>
     .reportview-container { background: #f0f2f6; }
-    /* 현장 작업용 대형 버튼 스타일 */
     div.stButton > button {
         width: 100% !important;
         height: 60px !important;
@@ -53,7 +51,7 @@ st.markdown("""
 # ==========================================
 st.image("nongshim_logo.png", width=150)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("스마트폰 기본 카메라 연동형 오날인 예방 툴 (안정성 극대화 버전)")
+st.caption("고화질 스마트폰 촬영 대응 이미지 자동 경량화 버전 (V3.2)")
 st.write("---")
 
 # ==========================================
@@ -68,17 +66,33 @@ try:
 except Exception as e:
     st.error(f"⚠️ AI 엔진 로드 오류: {e}")
 
-def extract_text(image):
-    if image is None:
-        return ""
-    img_np = np.array(image)
+# [핵심] 고화질 이미지를 받아서 가볍게 압축 및 리사이징하는 함수
+def process_and_extract_text(uploaded_file):
+    if uploaded_file is None:
+        return None, ""
+    
+    # 1. 이미지를 PIL 객체로 로드
+    img = Image.open(uploaded_file)
+    
+    # 2. 이미지 스마트 리사이징 (가로 기준 800픽셀로 자동 축소하여 메모리 폭발 방지)
+    max_width = 800
+    if img.width > max_width:
+        w_percent = (max_width / float(img.width))
+        h_size = int((float(img.height) * float(w_percent)))
+        img = img.resize((max_width, h_size), Image.Resampling.LANCZOS)
+    
+    # 3. AI 인식을 위해 OpenCV 포맷(Numpy)으로 변환
+    img_np = np.array(img)
+    
+    # 4. AI 글자 추출
     result = reader.readtext(img_np, detail=0)
     raw_text = "".join(result).upper()
     cleaned_text = "".join([char for char in raw_text if char.isalnum()])
-    return cleaned_text
+    
+    return img, cleaned_text
 
 # ==========================================
-# 4. 현장 작업용 투트랙(Two-track) 레이아웃 구성
+# 4. 현장 작업용 레이아웃 구성
 # ==========================================
 col1, col2 = st.columns(2)
 
@@ -86,15 +100,19 @@ with col1:
     st.markdown("### 🎯 1단계: [기준] 마스터 등록")
     st.info("오늘 작업할 올바른 일부인을 촬영하여 기준값으로 세팅하세요.")
     
-    # 버그를 유발하던 capture 옵션을 제거하여 호환성을 100%로 올렸습니다.
     master_file = st.file_uploader(
         "📸 터치하여 [기준] 사진 촬영", 
         type=["jpg", "jpeg", "png"], 
         key="uploader_master"
     )
     
+    master_img_resized = None
+    master_text = ""
     if master_file:
-        st.image(master_file, caption="🎯 현재 등록된 기준 데이터", use_container_width=True)
+        # 업로드 즉시 자동 압축 및 텍스트 추출 실행
+        master_img_resized, master_text = process_and_extract_text(master_file)
+        if master_img_resized:
+            st.image(master_img_resized, caption="🎯 현재 등록된 기준 데이터 (자동 경량화 완료)", use_container_width=True)
 
 with col2:
     st.markdown("### 🔍 2단계: [검사] 매시간 대조")
@@ -106,8 +124,13 @@ with col2:
         key="uploader_test"
     )
     
+    test_img_resized = None
+    test_text = ""
     if test_file:
-        st.image(test_file, caption="🔍 방금 촬영된 검사 대상", use_container_width=True)
+        # 업로드 즉시 자동 압축 및 텍스트 추출 실행
+        test_img_resized, test_text = process_and_extract_text(test_file)
+        if test_img_resized:
+            st.image(test_img_resized, caption="🔍 방금 촬영된 검사 대상 (자동 경량화 완료)", use_container_width=True)
 
 # ==========================================
 # 5. 실시간 비교 알고리즘 및 최종 판정 출력
@@ -116,13 +139,6 @@ st.write("---")
 st.subheader("📊 AI 1:1 대조 판정 결과")
 
 if master_file and test_file:
-    m_img = Image.open(master_file)
-    t_img = Image.open(test_file)
-    
-    with st.spinner("AI가 마킹 문자를 분석하고 있습니다..."):
-        master_text = extract_text(m_img)
-        test_text = extract_text(t_img)
-    
     res_col1, res_col2 = st.columns(2)
     with res_col1:
         st.metric(label="🎯 기준 데이터 (공백 제외)", value=master_text if master_text else "인식 실패")
