@@ -27,7 +27,6 @@ st.markdown("""
         font-size:32px !important; color: #e74c3c; font-weight: bold; 
         background-color: #fadbd8; padding: 25px; border-radius: 15px; text-align: center; border: 4px solid #e74c3c; 
     }
-    /* 대형 액션 버튼 스타일 */
     div.stButton > button {
         width: 100% !important;
         height: 60px !important;
@@ -38,7 +37,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# [프론트엔드 기술] 폰 카메라 호출 즉시 메모리단에서 초강력 압축 (튕김 절대 불가)
+# [프론트엔드 기술] 브라우저에 임시 저장된 사진 찌꺼기를 강제 리셋하는 초강력 압축 컴포넌트
 def HTML5_Super_Compressor(key_id, button_text):
     html_code = f"""
     <div style="font-family: sans-serif;">
@@ -81,7 +80,7 @@ def HTML5_Super_Compressor(key_id, button_text):
 # 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("버튼 오작동 및 캐시 꼬임 현상 완벽 방어 버전 (V9.2)")
+st.caption("스마트폰 브라우저 데이터 락(Lock) 무력화 및 순차 검증 버전 (V9.3)")
 st.write("---")
 
 # ==========================================
@@ -129,7 +128,7 @@ def extract_high_perf_marking(img_pil):
         return "AI 인식 오류 발생"
 
 # ==========================================
-# 3. 워크플로우 단계 제어 메모리 세팅
+# 3. 워크플로우 단계 제어 및 고유 카운터 메모리 세팅
 # ==========================================
 if "workflow_step" not in st.session_state:
     st.session_state.workflow_step = "MASTER_STAGE"
@@ -141,6 +140,9 @@ if "t_b64" not in st.session_state:
     st.session_state.t_b64 = None
 if "t_txt" not in st.session_state:
     st.session_state.t_txt = ""
+# 브라우저 강제 탈출용 난수 생성 카운터
+if "test_run_count" not in st.session_state:
+    st.session_state.test_run_count = 0
 
 # ==========================================
 # 4. 순차 가이드형 레이아웃 표출
@@ -159,7 +161,10 @@ if st.session_state.workflow_step == "MASTER_STAGE":
 
 elif st.session_state.workflow_step == "TEST_STAGE":
     st.markdown('<div class="status-box">📢 [2단계] 기준 등록 완료! 현재 라인의 생산 제품을 촬영해 주세요.</div>', unsafe_allow_html=True)
-    res_b64 = HTML5_Super_Compressor("test_engine", "🔍 생산 제품 사진 촬영")
+    
+    # [돌파구] 카메라를 불러올 때마다 고유 번호를 갱신하여 스마트폰의 옛날 사진 기억을 원천 초기화시킵니다.
+    cam_key = f"test_engine_{st.session_state.test_run_count}"
+    res_b64 = HTML5_Super_Compressor(cam_key, "🔍 생산 제품 사진 촬영")
     
     if res_b64 and res_b64 != st.session_state.t_b64:
         st.session_state.t_b64 = res_b64
@@ -199,12 +204,13 @@ elif st.session_state.workflow_step == "RESULT_STAGE":
         
     st.write("---")
     
-    # [핵심 버그 수정 구역] 버튼 클릭 시 세션 가상 메모리를 완벽하게 포맷하여 무한루프 탈출
     act_col1, act_col2 = st.columns(2)
     with act_col1:
         if st.button("🔄 다음 생산제품 추가 검사 (매시간 검사)", key="btn_go_next"):
             st.session_state.t_b64 = None
             st.session_state.t_txt = ""
+            # 고유 번호를 1 증가시켜 다음 카메라를 완전히 새 장비로 강제 인식시킵니다.
+            st.session_state.test_run_count += 1
             st.session_state.workflow_step = "TEST_STAGE"
             st.rerun()
             
