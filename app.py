@@ -6,20 +6,15 @@ import re
 import base64
 from io import BytesIO
 
-# ==========================================
-# 1. 페이지 설정 및 모바일 대형 UI 디자인
-# ==========================================
+# 1. 화면 기본 세팅 (모바일 현장 맞춤형 대형 UI)
 st.set_page_config(page_title="농심 부산생산1팀 검증 시스템", layout="wide")
 
 st.markdown("""
     <style>
-    .reportview-container { background: #f0f2f6; }
+    .reportview-container { background: #f5f6fa; }
     div.stButton > button {
-        width: 100% !important;
-        height: 65px !important;
-        font-size: 20px !important;
-        font-weight: bold !important;
-        border-radius: 12px !important;
+        width: 100% !important; height: 65px !important;
+        font-size: 20px !important; font-weight: bold !important; border-radius: 12px !important;
     }
     .big-font-ok { 
         font-size:32px !important; color: #2ecc71; font-weight: bold; 
@@ -30,10 +25,11 @@ st.markdown("""
         background-color: #fadbd8; padding: 25px; border-radius: 15px; text-align: center; border: 4px solid #e74c3c; 
     }
     .title-box { font-size: 18px; font-weight: bold; color: #2c3e50; margin-bottom: 5px; }
+    .data-text { background-color: #ffffff; padding: 12px; border-radius: 8px; border: 1px solid #cbd5e1; font-family: monospace; font-size: 16px; color: #334155; font-weight: bold; }
     </style>
 """, unsafe_allow_html=True)
 
-# [프론트엔드 핵심] 호출될 때마다 독립된 메모리를 생성하여 이전 사진 데이터를 완벽하게 덮어쓰는 압축 셔터
+# 폰 브라우저 캐시 버그를 원천 차단하는 자바스크립트 내장 셔터 컴포넌트
 def HTML5_Single_Shutter(key_id, button_text):
     html_code = f"""
     <div style="font-family: sans-serif;">
@@ -49,12 +45,10 @@ def HTML5_Single_Shutter(key_id, button_text):
     document.getElementById('lbl_{key_id}').addEventListener('click', function() {{
         document.getElementById('{key_id}').value = "";
     }});
-
     document.getElementById('{key_id}').addEventListener('change', function(e) {{
         const file = e.target.files[0];
         if (!file) return;
         document.getElementById('msg_{key_id}').innerText = "⚡ 이미지 고강도 압축 중...";
-        
         const reader = new FileReader();
         reader.readAsDataURL(file);
         reader.onload = function(evt) {{
@@ -62,14 +56,12 @@ def HTML5_Single_Shutter(key_id, button_text):
             img.src = evt.target.result;
             img.onload = function() {{
                 const canvas = document.createElement('canvas');
-                const maxWidth = 500;
+                const maxWidth = 600;
                 const scale = maxWidth / img.width;
-                canvas.width = maxWidth;
-                canvas.height = img.height * scale;
+                canvas.width = maxWidth; canvas.height = img.height * scale;
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                
-                const dataUrl = canvas.toDataURL('image/jpeg', 0.3);
+                const dataUrl = canvas.toDataURL('image/jpeg', 0.4);
                 window.parent.postMessage({{type: 'streamlit:setComponentValue', value: dataUrl, key: '{key_id}'}}, '*');
                 document.getElementById('msg_{key_id}').innerText = "📸 전송 완료!";
             }}
@@ -79,15 +71,12 @@ def HTML5_Single_Shutter(key_id, button_text):
     """
     return st.components.v1.html(html_code, height=95)
 
-# 상단 타이틀
 st.image("nongshim_logo.png", width=140)
 st.title("🍜 부산생산1팀 일부인 검증 시스템")
-st.caption("줄간격 들여쓰기 및 데이터 지연 오류 완전 수정 버전 (V10.2)")
+st.caption("초기화 리셋 완료 / 문구+LOT 완벽 매칭 순정 버전 (V15.0)")
 st.write("---")
 
-# ==========================================
-# 2. 고성능 파이썬 AI OCR 엔진 및 전방위 탐색 알고리즘
-# ==========================================
+# 2. AI OCR 로딩
 @st.cache_resource
 def load_ocr():
     return easyocr.Reader(['en'], gpu=False) 
@@ -98,93 +87,79 @@ except Exception as e:
     st.error(f"⚠️ AI 엔진 로드 오류: {e}")
 
 def convert_b64_to_pil(base64_str):
-    if not base64_str:
-        return None
+    if not base64_str: return None
     try:
         header, encoded = base64_str.split(",", 1)
-        data = base64.b64decode(encoded)
-        img_pil = Image.open(BytesIO(data))
-        return ImageOps.exif_transpose(img_pil)
-    except:
-        return None
+        return ImageOps.exif_transpose(Image.open(BytesIO(base64.b64decode(encoded))))
+    except: return None
 
-def extract_high_perf_marking(img_pil):
-    if img_pil is None:
-        return ""
+# 3. [핵심] 일지 주변 잡글씨를 완벽하게 차단하는 검증 블록 필터링 엔진
+def extract_full_marking_block(img_pil):
+    if img_pil is None: return ""
     try:
         rotations = [0, 90, 270]
         for angle in rotations:
             test_img = np.array(img_pil if angle == 0 else img_pil.rotate(angle, expand=True))
             result = reader.readtext(test_img, detail=0)
-            combined = "".join(result).upper().replace(" ", "")
             
-            date_match = re.search(r'\d{2}\.\d{2}\.\d{4}|\d{8}', combined)
-            if date_match:
-                date_part = date_match.group(0)
-                remaining = combined.replace(date_part, "")
-                lot_match = re.search(r'LOT:[A-Z0-9]{2,6}|LOT[A-Z0-9]{2,6}|[A-Z]{2}\d{2}', remaining)
-                lot_part = lot_match.group(0) if lot_match else ""
-                return f"📅 {date_part} / 📦 {lot_part}".strip()
-        return combined if "".join(result).strip() else "날짜 인식 실패"
-    except:
-        return "AI 인식 오류"
+            valid_lines = []
+            for line in result:
+                clean_line = line.upper().strip()
+                # 공정일지 속 수많은 노이즈 중 일부인 핵심 단어가 포함된 라인만 조준 타격
+                if any(x in clean_line for x in ["MINDESTENS", "HALTBAR", "BIS", "LOT", "TE26"]):
+                    valid_lines.append(clean_line)
+            
+            if valid_lines:
+                return " / ".join(valid_lines)
+        return "일부인 문구 인식 실패"
+    except: return "AI 인식 오류"
 
-# ==========================================
-# 3. 화면 고정형 독립 트랙 레이아웃 (들여쓰기 완전 정렬)
-# ==========================================
+# 4. 화면 좌/우 독립형 레이아웃 배치
 col1, col2 = st.columns(2)
 
 with col1:
-    st.markdown('<div class="title-box">🎯 [오더지/초물] 기준 등록</div>', unsafe_allow_html=True)
+    st.markdown('<div class="title-box">A. 오늘 작업 기준 마스터 등록</div>', unsafe_allow_html=True)
     master_b64 = HTML5_Single_Shutter("m_shutter", "🎯 기준 마스터 사진 촬영")
-    
     if master_b64:
         st.session_state.final_m_b64 = master_b64
-        m_pil = convert_b64_to_pil(master_b64)
-        st.session_state.final_m_txt = extract_high_perf_marking(m_pil)
+        st.session_state.final_m_txt = extract_full_marking_block(convert_b64_to_pil(master_b64))
 
     if "final_m_b64" in st.session_state and st.session_state.final_m_b64:
-        m_img_obj = convert_b64_to_pil(st.session_state.final_m_b64)
-        if m_img_obj is not None:
-            try:
-                st.image(m_img_obj, caption=f"🎯 기준: {st.session_state.final_m_txt}", use_container_width=True)
-            except:
-                pass
+        if "final_m_txt" in st.session_state and st.session_state.final_m_txt:
+            st.markdown(f"**🎯 마스터 등록 값:**")
+            st.markdown(f'<div class="data-text">{st.session_state.final_m_txt}</div>', unsafe_allow_html=True)
 
 with col2:
-    st.markdown('<div class="title-box">🔍 [매시간 제품] 실시간 검사</div>', unsafe_allow_html=True)
+    st.markdown('<div class="title-box">B. 매시간 생산 제품 실시간 검사</div>', unsafe_allow_html=True)
     test_b64 = HTML5_Single_Shutter("t_shutter", "🔍 생산 제품 사진 촬영")
-    
     if test_b64:
         st.session_state.final_t_b64 = test_b64
-        t_pil = convert_b64_to_pil(test_b64)
-        st.session_state.final_t_txt = extract_high_perf_marking(t_pil)
+        st.session_state.final_t_txt = extract_full_marking_block(convert_b64_to_pil(test_b64))
 
     if "final_t_b64" in st.session_state and st.session_state.final_t_b64:
-        t_img_obj = convert_b64_to_pil(st.session_state.final_t_b64)
-        if t_img_obj is not None:
-            try:
-                st.image(t_img_obj, caption=f"🔍 검사: {st.session_state.final_t_txt}", use_container_width=True)
-            except:
-                pass
+        if "final_t_txt" in st.session_state and st.session_state.final_t_txt:
+            st.markdown(f"**🔍 현재 제품 검사 값:**")
+            st.markdown(f'<div class="data-text">{st.session_state.final_t_txt}</div>', unsafe_allow_html=True)
 
-# ==========================================
-# 4. 실시간 1:1 대조 판정 디스플레이
-# ==========================================
+# 5. 1:1 최종 대조 판정 구역
 st.write("---")
-st.subheader("📊 AI 1:1 대조 판정 결과")
+st.subheader("📊 AI 1:1 글자+숫자 완벽 대조 결과")
 
 if "final_m_txt" in st.session_state and "final_t_txt" in st.session_state:
     m_res = st.session_state.final_m_txt
     t_res = st.session_state.final_t_txt
     
-    if m_res != "" and t_res != "":
-        if m_res == t_res and "실패" not in m_res:
-            st.markdown(f'<p class="big-font-ok">🟢 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인이 완벽히 일치합니다. 생산을 계속 진행하세요.<br>({m_res})</span></p>', unsafe_allow_html=True)
+    if m_res and t_res and "실패" not in m_res and "실패" not in t_res:
+        # 기호나 공백 차이로 인한 NG 오작동 방지 정제작업
+        m_compare = m_res.replace(" ", "").replace(":", "").replace("-", "").replace(".", "")
+        t_compare = t_res.replace(" ", "").replace(":", "").replace("-", "").replace(".", "")
+        
+        if m_compare == t_compare:
+            st.markdown(f'<p class="big-font-ok">🟢 전체 문구 일치 (OK) <br><span style="font-size:16px; font-weight:normal;">일부인 문구 및 LOT 번호가 마스터와 100% 일치합니다. 생산을 계속 진행하세요.</span></p>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<p class="big-font-ng">🔴 불일치 (NG) - 오날인 위험!! <br><span style="font-size:16px; font-weight:normal;">마킹 정보가 다릅니다! 마킹기 출력을 즉시 확인하세요.<br>🎯 기준: {m_res} / 🔍 검사: {t_res}</span></p>', unsafe_allow_html=True)
+            st.markdown(f'<p class="big-font-ng">🔴 문구/LOT 불일치 (NG) <br><span style="font-size:16px; font-weight:normal;">글자나 숫자가 마스터와 다릅니다! 마킹 인쇄 상태를 확인하세요.</span></p>', unsafe_allow_html=True)
 else:
-    st.info("💡 좌측 버튼으로 [기준 등록]을 먼저 하신 후, 우측 버튼으로 [생산 제품]을 촬영하시면 실시간 대조가 시작됩니다.")
+    st.info("💡 기준 등록과 제품 촬영을 마치면 상호 대조 판정이 실시간으로 출력됩니다.")
 
 if st.button("🆕 시스템 전체 초기화 (제품 변경 시)"):
     st.session_state.clear()
